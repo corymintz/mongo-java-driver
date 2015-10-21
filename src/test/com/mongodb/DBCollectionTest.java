@@ -23,6 +23,7 @@ import org.junit.Test;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -80,7 +81,7 @@ public class DBCollectionTest extends TestCase {
 
         DBObject inserted1 = BasicDBObjectBuilder.start().add("x",1).add("y",2).get();
         DBObject inserted2 = BasicDBObjectBuilder.start().add("x",3).add("y",3).get();
-        c.insert(inserted1,inserted2);
+        c.insert(inserted1, inserted2);
     }
 
     @Test
@@ -318,13 +319,13 @@ public class DBCollectionTest extends TestCase {
 
         o.put( "x" , 1 );
         o.put( "y" , 1 );
-        o.put( "a" , 1 );
-        assertEquals( "x_1_y_1_a_1" , DBCollection.genIndexName(o) );
+        o.put("a", 1);
+        assertEquals("x_1_y_1_a_1", DBCollection.genIndexName(o));
 
         o = new BasicDBObject();
-        o.put( "z" , 1 );
-        o.put( "a" , 1 );
-        assertEquals( "z_1_a_1" , DBCollection.genIndexName(o) );
+        o.put("z", 1);
+        o.put("a", 1);
+        assertEquals("z_1_a_1", DBCollection.genIndexName(o));
     }
 
     @Test
@@ -424,12 +425,12 @@ public class DBCollectionTest extends TestCase {
         DBCollection c = collection;
 
         BasicDBObject newDoc = new BasicDBObject( "x", new BasicDBObject( "y", 1 ) );
-        c.save( newDoc );
+        c.save(newDoc);
 
-        assertEquals( 1 , c.getIndexInfo().size() );
-        c.ensureIndex( new BasicDBObject("x.y", 1), "nestedIdx1", false);
+        assertEquals(1, c.getIndexInfo().size());
+        c.ensureIndex(new BasicDBObject("x.y", 1), "nestedIdx1", false);
         assertEquals( 2 , c.getIndexInfo().size() );
-        assertEquals( "nestedIdx1" , c.getIndexInfo().get(1).get("name") );
+        assertEquals("nestedIdx1", c.getIndexInfo().get(1).get("name"));
         
         c.drop();
         c.createIndex(new BasicDBObject("x.y", 1), new BasicDBObject("name", "nestedIdx1").append("unique", false));
@@ -558,7 +559,7 @@ public class DBCollectionTest extends TestCase {
     @Test( expected = IllegalArgumentException.class )
     public void testNullCharacterInNestedKeyFails() {
         final BasicDBList list = new BasicDBList();
-        list.add(new BasicDBObject("foo\0bar","baz"));
+        list.add(new BasicDBObject("foo\0bar", "baz"));
         DBObject obj = BasicDBObjectBuilder.start().add("x", list).get();
         collection.insert(obj);
     }
@@ -742,5 +743,73 @@ public class DBCollectionTest extends TestCase {
         }
 
         assertTrue(ids.isEmpty());
+    }
+
+    @Test
+    public void testBypassDocumentValidationForInserts() {
+        //given
+        DBObject options = new BasicDBObject("validator", QueryBuilder.start("level").greaterThanEquals(10).get());
+        DBCollection c = getDatabase().createCollection(getClass().getName(), options);
+
+        try {
+            c.insert(Collections.<DBObject>singletonList(new BasicDBObject("level", 9)));
+            if (serverIsAtLeastVersion(3.2)) {
+                fail();
+            }
+        } catch (MongoException e) {
+            // success
+        }
+
+        try {
+            c.insert(Collections.<DBObject>singletonList(new BasicDBObject("level", 9)),
+                     new InsertOptions().bypassDocumentValidation(false));
+            if (serverIsAtLeastVersion(3.2)) {
+                fail();
+            }
+        } catch (MongoException e) {
+            // success
+        }
+
+        try {
+            c.insert(Collections.<DBObject>singletonList(new BasicDBObject("level", 9)),
+                     new InsertOptions().bypassDocumentValidation(true));
+        } catch (MongoException e) {
+                fail();
+        }
+    }
+
+    @Test
+    public void testBypassDocumentValidationForUpdates() {
+
+        //given
+        DBObject options = new BasicDBObject("validator", QueryBuilder.start("level").greaterThanEquals(10).get());
+        DBCollection c = getDatabase().createCollection(getClass().getName(), options);
+
+        try {
+            c.update(new BasicDBObject("_id", 1), new BasicDBObject("_id", 1).append("level", 9), true, false, WriteConcern.ACKNOWLEDGED,
+                     null, null);
+            if (serverIsAtLeastVersion(3.2)) {
+                fail();
+            }
+        } catch (MongoException e) {
+            // success
+        }
+
+        try {
+            c.update(new BasicDBObject("_id", 1), new BasicDBObject("_id", 1).append("level", 9), true, false, WriteConcern.ACKNOWLEDGED,
+                     false, null);
+            if (serverIsAtLeastVersion(3.2)) {
+                fail();
+            }
+        } catch (MongoException e) {
+            // success
+        }
+
+        try {
+            c.update(new BasicDBObject("_id", 1), new BasicDBObject("_id", 1).append("level", 9), true, false, WriteConcern.ACKNOWLEDGED,
+                     true, null);
+        } catch (MongoException e) {
+                fail();
+        }
     }
 }

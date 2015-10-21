@@ -174,6 +174,8 @@ public abstract class DBCollection {
      */
     public abstract WriteResult insert(List<DBObject> list, WriteConcern concern, DBEncoder encoder);
 
+    abstract WriteResult insert(List<DBObject> list, WriteConcern concern, DBEncoder encoder, Boolean bypassDocumentValidation);
+
     /**
      * <p>Insert documents into a collection. If the collection does not exists on the server, then it will be created. If the new document
      * does not contain an '_id' field, it will be added.</p>
@@ -194,7 +196,7 @@ public abstract class DBCollection {
             writeConcern = writeConcern.continueOnError(true);
         }
         DBEncoder dbEncoder = insertOptions.getDbEncoder() != null ? insertOptions.getDbEncoder() : getDBEncoder();
-        return insert(documents, writeConcern, dbEncoder);
+        return insert(documents, writeConcern, dbEncoder, insertOptions.getBypassDocumentValidation());
     }
 
     /**
@@ -211,7 +213,7 @@ public abstract class DBCollection {
      * @mongodb.driver.manual tutorial/modify-documents/ Modify
      */
     public WriteResult update( DBObject q , DBObject o , boolean upsert , boolean multi , WriteConcern concern ){
-        return update( q, o, upsert, multi, concern, getDBEncoder());
+        return update(q, o, upsert, multi, concern, getDBEncoder());
     }
 
     /**
@@ -229,6 +231,28 @@ public abstract class DBCollection {
      * @mongodb.driver.manual tutorial/modify-documents/ Modify
      */
     public abstract WriteResult update( DBObject q , DBObject o , boolean upsert , boolean multi , WriteConcern concern, DBEncoder encoder );
+
+    /**
+     * Modify an existing document or documents in collection. By default the method updates a single document. The query parameter employs
+     * the same query selectors, as used in {@link DBCollection#find(DBObject)}.
+     *
+     * @param q       the selection criteria for the update
+     * @param o       the modifications to apply
+     * @param upsert  when true, inserts a document if no document matches the update query criteria
+     * @param multi   when true, updates all documents in the collection that match the update query criteria, otherwise only updates one
+     * @param concern {@code WriteConcern} to be used during operation
+     * @param bypassDocumentValidation whether to bypass document validation.  Null indicates that the server's default setting should be
+     *                                 used
+     * @param encoder the DBEncoder to use
+     * @return the result of the operation
+     * @throws MongoException
+     * @mongodb.driver.manual tutorial/modify-documents/ Modify
+     * @since 2.14
+     */
+    public WriteResult update( DBObject q , DBObject o , boolean upsert , boolean multi , WriteConcern concern,
+                               Boolean bypassDocumentValidation, DBEncoder encoder) {
+        throw new UnsupportedOperationException();  // must be implemented in subclass
+    }
 
     /**
      * Modify an existing document or documents in collection. By default the method updates a single document. The query parameter employs
